@@ -1,45 +1,79 @@
 library(scholar)
+library(data.table)
 
 rm(list = ls())
-faculty = read.csv("./data/UMCES_FacultyList_20200226_VL.csv", 
+
+########## Load and clean faculty data ##########
+faculty = read.csv("./dataraw/UMCES_FacultyList_20200226_VL.csv",
                    na.strings = "",
                    stringsAsFactors = FALSE)
-#Yantao Li "-vcO4LsAAAAJ"
-#create FacultyID for easy referencing
-faculty$FamilyName = gsub(",.*$", "", faculty$Name)
-faculty$FamilyName[faculty$FamilyName == "Li"] = paste0(substring(sapply(strsplit(faculty$Name[faculty$FamilyName == "Li"], ", "), "[", 2), 1, 1), " Li")
-faculty$FamilyName[faculty$FamilyName == "Zhang"] = paste0(substring(sapply(strsplit(faculty$Name[faculty$FamilyName == "Zhang"], ", "), "[", 2), 1, 1), " Zhang")
-length(unique(faculty$FamilyName)) == nrow(faculty) #check uniqueness
+faculty = setDT(faculty)
 
+### Fix Google IDs that keep getting messed up in CSV
+#Yantao Li's ID starts with "-" and gets lost in CSV
+faculty$GoogleAuthorID[faculty$Name == "Li, Yantao"] = "-vcO4LsAAAAJ"
+
+#Get PreferredInitial + FamilyName that are used in publications
+faculty = faculty[, ':=' ( FamilyName = gsub(",.*$", "", Name),
+                           FirstName = gsub(".*, ", "", Name) )]
+faculty = faculty[, ':=' ( PreferredInitial = substring(FirstName, 1, 1) )]
+#correct some initials:
+faculty$PreferredInitial[faculty$FamilyName == "Lyubchich"] = "V"
+#reassign the name variable
+faculty$Name = paste(faculty$PreferredInitial, faculty$FamilyName)
+length(unique(faculty$Name)) == nrow(faculty) #check uniqueness
+
+
+########## Collect data from Google Scholar ##########
 #select faculty with Google Scholar profiles
-fGS = faculty[!is.na(faculty$GoogleAuthorID),]
+facultyGS = faculty[!is.na(GoogleAuthorID),]
+GSpubs = lapply(facultyGS$GoogleAuthorID, function(x)
+    get_publications(x, pagesize = 100, flush = TRUE) )
+names(GSpubs) = facultyGS$Name
+saveRDS(GSpubs, file = paste0("./dataderived/GSpubs_", Sys.Date(), ".rds"))
+# GScite = lapply(facultyGS$GoogleAuthorID, function(x)
+#     get_citation_history(x) )
+# names(GScite) = facultyGS$Name
+# saveRDS(GScite, file = paste0("./dataderived/GScite_", Sys.Date(), ".rds"))
 
-#collect data from Google Scholar
-GSdata = as.list(rep(NA, nrow(fGS)))
-names(GSdata) = fGS$FamilyName
-for(i in 1:nrow(fGS)) {
-    GSdata[[i]] = get_publications(fGS$GoogleAuthorID[i], pagesize = 100, flush = TRUE)
+
+#number of publications retrieved from each Google Scholar profile
+faculty$npubs = NA
+faculty$npubs[!is.na(faculty$GoogleAuthorID)] = as.integer(sapply(GSpubs, function(x) nrow(x)))
+summary(faculty$npubs)
+
+### NOTE: not all authors are listed in the "author" field -- see the "..." cases
+# i = 2
+# tmp = GSpubs[[i]]$author
+# # Hence, sometimes even the Google Scholar author is not listed as a coauthor:
+# grepl(pattern = facultyGS$FamilyName[i], x = tmp, ignore.case = FALSE)
+# # However, the function of retrieving all authors is hard to run because of too many requests
+# tmp2 = sapply(GSpubs[[i]]$pubid, function(x) {
+#     #Sys.sleep(runif(1, min = 30, max = 60))
+#     get_complete_authors(facultyGS$GoogleAuthorID[i], x) })
+# # Need to update and replace GSdata[[i]]$author below with all authors.
+
+
+########## Create adjacency matrix ##########
+A = matrix(NA, nrow = nrow(faculty), ncol = nrow(faculty),
+           dimnames = list(faculty$Name, faculty$Name))
+for(i in 1:length(GSpubs)) { # i = 2; j = 3
+    authors = paste0(GSpubs[[i]]$author, collapse = ", ")
+    authorssep = unlist(strsplit(authors, ", "))
+    for(j in 1:nrow(faculty)) {
+        #if there is a j-th family name among Google coauthors & initial before it
+        if (grepl(pattern = faculty$FamilyName[j], x = authors, ignore.case = TRUE)) {
+            #authors with matching family name
+            tmp = authorssep[grepl(faculty$FamilyName[j], authorssep)]
+            #strip the family name to get initial(s)
+            tmp = gsub(faculty$FamilyName[j], "", tmp)
+            #check that the preferred initial is present
+            A[facultyGS$Name[i], j] = any(grepl(faculty$PreferredInitial[j], tmp))
+        } else {
+            A[facultyGS$Name[i], j] = FALSE
+        }
+    }
 }
-saveRDS(GSdata, file = paste0("./data/GSdata_", Sys.Date(), ".rds"))
-
-#number of publications retrieved from each Google Scholar profile 
-fGS$npubs = sapply(GSdata, function(x) nrow(x))
-summary(fGS$npubs)
-# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 21.0    53.5    72.0   109.7   147.5   317.0 
-
-# tmp = GSdata[[2]]$author
-# grepl(pattern = faculty$FamilyName[3], x = tmp, ignore.case = FALSE)
-
-#create (non-symmetric for now) adjacency matrix for all faculty
-A = matrix(NA, nrow = nrow(faculty), ncol = nrow(faculty), 
-           dimnames = list(faculty$FamilyName, faculty$FamilyName))
-for(i in 1:length(GSdata)) { # i = 2
-    authors = GSdata[[i]]$author
-    iscoauthor = sapply(faculty$FamilyName, function(g)
-                        grepl(pattern = g, x = authors, ignore.case = FALSE)
-    )
-    A[fGS$FamilyName[i],] = apply(iscoauthor, 2, any)
-}
-save.image(file = paste0("./dataderived/image_getcoauthors_", Sys.Date(), ".RData"))
+#the matrix A is likely not symmetric, but the network construction function symmetrizes it.
+save(A, faculty, file = paste0("./dataderived/image_getcoauthors_", Sys.Date(), ".RData"))
 
