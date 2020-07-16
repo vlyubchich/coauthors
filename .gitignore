@@ -3,5 +3,8 @@
 .RData
 .Ruserdata
 
+*.html
+
 #folders
 /data*
+/rsconnect

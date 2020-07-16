@@ -31,6 +31,8 @@ GSpubs = lapply(facultyGS$GoogleAuthorID, function(x)
     get_publications(x, pagesize = 100, flush = TRUE) )
 names(GSpubs) = facultyGS$Name
 saveRDS(GSpubs, file = paste0("./dataderived/GSpubs_", Sys.Date(), ".rds"))
+
+# The following doesn't run because of too many requests(?)
 # GScite = lapply(facultyGS$GoogleAuthorID, function(x)
 #     get_citation_history(x) )
 # names(GScite) = facultyGS$Name
@@ -45,9 +47,9 @@ summary(faculty$npubs)
 ### NOTE: not all authors are listed in the "author" field -- see the "..." cases
 # i = 2
 # tmp = GSpubs[[i]]$author
-# # Hence, sometimes even the Google Scholar author is not listed as a coauthor:
+# # Hence, sometimes even the Google Scholar account owner is not listed as a coauthor:
 # grepl(pattern = facultyGS$FamilyName[i], x = tmp, ignore.case = FALSE)
-# # However, the function of retrieving all authors is hard to run because of too many requests
+# # The function of retrieving all authors doew not run because of too many requests
 # tmp2 = sapply(GSpubs[[i]]$pubid, function(x) {
 #     #Sys.sleep(runif(1, min = 30, max = 60))
 #     get_complete_authors(facultyGS$GoogleAuthorID[i], x) })
@@ -60,13 +62,17 @@ A = matrix(NA, nrow = nrow(faculty), ncol = nrow(faculty),
 for(i in 1:length(GSpubs)) { # i = 2; j = 3
     authors = paste0(GSpubs[[i]]$author, collapse = ", ")
     authorssep = unlist(strsplit(authors, ", "))
+    authorssep2 = tolower(unlist(strsplit(authorssep, " ")))
     for(j in 1:nrow(faculty)) {
         #if there is a j-th family name among Google coauthors & initial before it
-        if (grepl(pattern = faculty$FamilyName[j], x = authors, ignore.case = TRUE)) {
+        if(is.element(tolower(faculty$FamilyName[j]), authorssep2)) {
             #authors with matching family name
             tmp = authorssep[grepl(faculty$FamilyName[j], authorssep)]
-            #strip the family name to get initial(s)
-            tmp = gsub(faculty$FamilyName[j], "", tmp)
+            #Strip the family name to get initial(s)
+            # tmp = gsub(faculty$FamilyName[j], "", tmp) #this works for long names, potential error for short family names
+            #-starting character for the family name
+            startfn = regexpr(faculty$FamilyName[j], tmp)
+            tmp = substr(tmp, 1, startfn-2) #just the initials
             #check that the preferred initial is present
             A[facultyGS$Name[i], j] = any(grepl(faculty$PreferredInitial[j], tmp))
         } else {

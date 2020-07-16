@@ -1,0 +1,241 @@
+---
+title: "UMCES coauthors"
+author: "V. Lyubchich"
+date: "2020-07-16"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    #code_folding: hide
+bibliography: coauthors.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+## Introduction
+
+This analysis was done just out of curiosity and is not intended to be taken seriously.
+
+This document shows analysis of publicly available data on coauthor relationships of faculty members at the University of Maryland Center for Environmental Science (UMCES). UMCES departments are: 
+Appalachian Laboratory (AL), 
+Chesapeake Biological Laboratory (CBL),
+Horn Point Laboratory (HPL), and
+Institute of Marine and Environmental Technology (IMET). 
+Full code for these results is available on [GitHub](https://github.com/vlyubchich/coauthors), but data folders with the faculty lists are kept offline. 
+
+Below is an interactive graph of UMCES faculty coauthorship, with details further below.
+
+```{r}
+# output: 
+#     html_document:
+#         keep.md: TRUE
+# output: rmarkdown::github_document
+# always_allow_html: true
+library(igraph)
+library(networkD3)
+library(plotly)
+library(viridis)
+library(hrbrthemes)
+library(funtimes)
+load("./dataderived/image_getcoauthors_2020-07-16.RData")
+```
+
+```{r, fig.show = "hold"}
+G = graph_from_adjacency_matrix(A, mode = "max", diag = FALSE)
+G_D3 = igraph_to_networkD3(G, group = faculty$Lab)
+forceNetwork(Links = G_D3$links, Nodes = G_D3$nodes,
+             Source = 'source', Target = 'target', NodeID = 'name',
+             Group = 'group', legend = TRUE,
+             opacity = 1, fontSize = 16, zoom = FALSE, bounded = TRUE)
+```
+
+
+## Data
+
+The UMCES faculty list is taken as of 2020-02-26. If you are one of the faculty and wish your name to be removed from analysis just let me know.
+
+The coauthorship network is based on data extracted from Google Scholar on 2020-07-16. Nodes of the network are UMCES faculty members; 
+an edge between faculty members A and B exists if A is listed (at least once) among authors of publications in B's profile or vice versa.
+
+Why Google Scholar (advantages):
+
+* Google Scholar is probably the most popular platform tracking academic work. From `r nrow(faculty)` people in the faculty list, I found Google Scholar profiles for `r sum(!is.na(faculty$GoogleAuthorID))` people.
+* Google Scholar is efficient in adding new publications to the profiles automatically, so the data are likely most updated compared to other platforms.
+* Google Scholar is more inclusive in terms of indexing different publication sources, compared with overly selective Web of Science and such.
+* Google Scholar is easier to crawl than other websites.
+    
+Possible problems (disadvantages):
+
+* Google Scholar profiles were not available for some of the faculty. From their coauthorship links, only those with Google Scholar users were recorded 
+    (for example, if faculty members A, B, and C are coauthors but only C has a Google Scholar profile, then the identified links will be A-C and B-C, without A-B).
+* The accuracy and completeness of Google Scholar is not perfect; account owners put different amount of effort to maintain their profiles.
+* There could be computer errors when accessing the web data, extracting and matching names, including the cases of common or short family names.
+* For publications with many coauthors, only first few (up to 5-7) authors are tracked. Attempts to scrape full metadata for each publication have been blocked by the server.
+
+
+## Summaries
+
+### Node degree
+
+The plots below show "within-UMCES-collaborativeness" by counting how many coauthors from UMCES each faculty member has (that is, *node degree* in the coauthorship network). Red points represent faculty members without Google Scholar account (see data description above).
+
+```{r}
+faculty$nodeDegree = degree(G)
+faculty$nodeBetweenness = betweenness(G)
+hasGS = rep("black", nrow(faculty))
+hasGS[is.na(faculty$GoogleAuthorID)] = "red"
+#create a simplified rank
+faculty$rank = NA
+faculty$rank[grep("agent", faculty$Rank, ignore.case = TRUE)] = "Agent"
+faculty$rank[grep("assist", faculty$Rank, ignore.case = TRUE)] = "Assistant"
+faculty$rank[grep("assoc", faculty$Rank, ignore.case = TRUE)] = "Associate"
+faculty$rank[faculty$Rank == "Professor" | faculty$Rank == "Research Professor"] = "Full professor"
+# summary(faculty)
+```
+
+```{r}
+p = faculty %>%
+  ggplot( aes(x = Lab, y = nodeDegree, fill = Lab, label = Name)) +
+    geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
+    theme_ipsum_pub() +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(size=11)
+    ) +
+    ggtitle("Collaborativeness by lab") +
+    xlab("") + ylab("Node degree")
+ggplotly(p)
+```
+
+
+Each faculty member had a different chance to establish collaborations within UMCES. For example, junior faculty members are likely to have fewer collaborations, and the next plot shows it.
+```{r}
+p = faculty %>%
+  ggplot( aes(x = rank, y = nodeDegree, fill = rank, label = Name)) +
+    geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
+    theme_ipsum_pub() +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(size=11)
+    ) +
+    ggtitle("Collaborativeness by faculty rank (research and tenure together)") +
+    xlab("") + ylab("Node degree")
+ggplotly(p)
+```
+
+### Betweenness centrality
+
+Node degree is one of many measures of node centrality (sort of importance in a network context). Another common measure is *betweenness centrality* based on the the number of shortest paths in a network that pass through the specific node (in other words, how often the specific node appears in an arbitrage position).
+
+```{r}
+p = faculty %>%
+  ggplot( aes(x = Lab, y = nodeBetweenness, fill = Lab, label = Name)) +
+    geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
+    theme_ipsum_pub() +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(size=11)
+    ) +
+    ggtitle("Betweenness centrality by lab") +
+    xlab("") + ylab("Betweenness centrality")
+ggplotly(p)
+```
+
+And repeat with grouping by faculty rank.
+
+```{r}
+p = faculty %>%
+  ggplot( aes(x = rank, y = nodeBetweenness, fill = rank, label = Name)) +
+    geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
+    theme_ipsum_pub() +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(size=11)
+    ) +
+    ggtitle("Betweenness centrality by faculty rank") +
+    xlab("") + ylab("Betweenness centrality")
+ggplotly(p)
+```
+
+### Number of publications
+
+Below is number of publications retrieved from Google Scholar for each faculty member.
+```{r}
+p = faculty %>%
+  ggplot( aes(x = rank, y = npubs, fill = rank, label = Name)) +
+    geom_boxplot() +
+    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+    geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
+    theme_ipsum_pub() +
+    theme(
+      legend.position = "none",
+      plot.title = element_text(size=11)
+    ) +
+    ggtitle("Number of publications by faculty rank") +
+    xlab("") + ylab("Number of publications on Google Scholar")
+ggplotly(p)
+```
+
+### Affiliation and collaboration
+
+Here investigate whether network clusters match the formal affiliation of faculty to different departments. The network clusters represent communities (color rectangles below) densely connected by the coauthorship links.
+
+```{r}
+fc = cluster_fast_greedy(G) #; modularity(fc) #0.307968
+# fc = cluster_walktrap(G) #; modularity(fc) #0.250488
+# fc = cluster_label_prop(G) #; modularity(fc) #0.007968
+# fc = cluster_leading_eigen(G) #; modularity(fc) #0.273544
+# fc = cluster_optimal(G); modularity(fc) #too long
+# plot(fc, G)
+plot_dendrogram(fc, las = 1, mode = "hclust", labels = FALSE)
+```
+
+From several readily available algorithms, fast greedy algorithm was used, which identified `r max(fc$membership)` communities.
+
+```{r}
+p = purity(faculty$Lab, fc$membership)
+```
+
+Knowing the actual affiliations of the faculty, the clustering can be checked using several evaluation criteria, one of which is purity [@Manning_etal_2008, Section 16]:
+
+$$Purity(\Omega,C) = \frac{1}{N}\sum_{k}\max_{j}|\omega_k\cap c_j|,$$
+
+where $\Omega=\{\omega_1,\ldots,\omega_K \}$ is the set of identified clusters and $C=\{c_1,\ldots,c_J\}$ is the set of classes. That is, within each class $j=1,\ldots,J$ find the size of the most populous cluster from the $K-j$ unassigned clusters. Then, sum together the $\min(K,J)$ sizes found and divide by the sample size $N$.
+
+When classes represent the laboratory affiliation (that was not used in clustering) and clusters are the communities obtained by tracking coauthorship links, $Purity =$ `r round(p$pur, 2)`.
+
+## Conclusion
+
+It's been fun.
+
+### Updates (since 2020-05-16)
+
+* Changed family name matching to be not case-sensitive because some names are spelled on Google Scholar in all caps 
+* Changed name matching from family name to family name + initial matching for higher accuracy
+* Fixed a typo in one of the family names
+* Added Google Scholar data for one more person
+* Added number of publications plot
+
+
+### Next steps
+* Retrieve full lists of authors per paper (not truncated)
+* Update text matching
+* Text analytics on paper titles, journal titles
+* Update Google IDs if someone opened an account
+* Count average number of authors per paper
+* Add other information from Google Scholar such as citations and h-index
+* Add textbook references
+
+
+## References
