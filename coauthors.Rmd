@@ -12,7 +12,7 @@ bibliography: coauthors.bib
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
 ## Introduction
@@ -66,11 +66,11 @@ Why Google Scholar (advantages):
 * Google Scholar is efficient in adding new publications to the profiles automatically, so the data are likely most updated compared to other platforms.
 * Google Scholar is more inclusive in terms of indexing different publication sources, compared with overly selective Web of Science and such.
 * Google Scholar is easier to crawl than other websites.
-    
+
 Possible problems (disadvantages):
 
 * Google Scholar profiles were not available for some of the faculty. From their coauthorship links, only those with Google Scholar users were recorded 
-    (for example, if faculty members A, B, and C are coauthors but only C has a Google Scholar profile, then the identified links will be A-C and B-C, without A-B).
+(for example, if faculty members A, B, and C are coauthors but only C has a Google Scholar profile, then the identified links will be A-C and B-C, without A-B).
 * The accuracy and completeness of Google Scholar is not perfect; account owners put different amount of effort to maintain their profiles.
 * There could be computer errors when accessing the web data, extracting and matching names, including the cases of common or short family names.
 * For publications with many coauthors, only first few (up to 5-7) authors are tracked. Attempts to scrape full metadata for each publication have been blocked by the server.
@@ -99,16 +99,16 @@ faculty$rank[faculty$Rank == "Professor" | faculty$Rank == "Research Professor"]
 ```{r}
 p = faculty %>%
   ggplot( aes(x = Lab, y = nodeDegree, fill = Lab, label = Name)) +
-    geom_boxplot() +
-    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
-    geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
-    theme_ipsum_pub() +
-    theme(
-      legend.position = "none",
-      plot.title = element_text(size=11)
-    ) +
-    ggtitle("Collaborativeness by lab") +
-    xlab("") + ylab("Node degree")
+  geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
+  theme_ipsum_pub() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size=11)
+  ) +
+  ggtitle("Collaborativeness by lab") +
+  xlab("") + ylab("Node degree")
 ggplotly(p)
 ```
 
@@ -117,16 +117,16 @@ Each faculty member had a different chance to establish collaborations within UM
 ```{r}
 p = faculty %>%
   ggplot( aes(x = rank, y = nodeDegree, fill = rank, label = Name)) +
-    geom_boxplot() +
-    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
-    geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
-    theme_ipsum_pub() +
-    theme(
-      legend.position = "none",
-      plot.title = element_text(size=11)
-    ) +
-    ggtitle("Collaborativeness by faculty rank (research and tenure together)") +
-    xlab("") + ylab("Node degree")
+  geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
+  theme_ipsum_pub() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size=11)
+  ) +
+  ggtitle("Collaborativeness by faculty rank (research and tenure together)") +
+  xlab("") + ylab("Node degree")
 ggplotly(p)
 ```
 
@@ -137,16 +137,16 @@ Node degree is one of many measures of node centrality (sort of importance in a 
 ```{r}
 p = faculty %>%
   ggplot( aes(x = Lab, y = nodeBetweenness, fill = Lab, label = Name)) +
-    geom_boxplot() +
-    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
-    geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
-    theme_ipsum_pub() +
-    theme(
-      legend.position = "none",
-      plot.title = element_text(size=11)
-    ) +
-    ggtitle("Betweenness centrality by lab") +
-    xlab("") + ylab("Betweenness centrality")
+  geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
+  theme_ipsum_pub() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size=11)
+  ) +
+  ggtitle("Betweenness centrality by lab") +
+  xlab("") + ylab("Betweenness centrality")
 ggplotly(p)
 ```
 
@@ -155,16 +155,16 @@ And repeat with grouping by faculty rank.
 ```{r}
 p = faculty %>%
   ggplot( aes(x = rank, y = nodeBetweenness, fill = rank, label = Name)) +
-    geom_boxplot() +
-    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
-    geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
-    theme_ipsum_pub() +
-    theme(
-      legend.position = "none",
-      plot.title = element_text(size=11)
-    ) +
-    ggtitle("Betweenness centrality by faculty rank") +
-    xlab("") + ylab("Betweenness centrality")
+  geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
+  theme_ipsum_pub() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size=11)
+  ) +
+  ggtitle("Betweenness centrality by faculty rank") +
+  xlab("") + ylab("Betweenness centrality")
 ggplotly(p)
 ```
 
@@ -174,22 +174,23 @@ Below is number of publications retrieved from Google Scholar for each faculty m
 ```{r}
 p = faculty %>%
   ggplot( aes(x = rank, y = npubs, fill = rank, label = Name)) +
-    geom_boxplot() +
-    scale_fill_viridis(discrete = TRUE, alpha=0.6) +
-    geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
-    theme_ipsum_pub() +
-    theme(
-      legend.position = "none",
-      plot.title = element_text(size=11)
-    ) +
-    ggtitle("Number of publications by faculty rank") +
-    xlab("") + ylab("Number of publications on Google Scholar")
+  geom_boxplot() +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6) +
+  geom_jitter(color = hasGS, size=0.6, alpha = 0.9, width = 0.2) +
+  theme_ipsum_pub() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(size=11)
+  ) +
+  ylim(0, max(faculty$npubs)) +
+  ggtitle("Number of publications by faculty rank") +
+  xlab("") + ylab("Number of publications on Google Scholar")
 ggplotly(p)
 ```
 
 ### Affiliation and collaboration
 
-Here investigate whether network clusters match the formal affiliation of faculty to different departments. The network clusters represent communities (color rectangles below) densely connected by the coauthorship links.
+Here investigate whether network clusters match the formal affiliation of faculty to different departments. The network clusters represent communities (color rectangles on the clustering dendrogram below) densely connected by the coauthorship links.
 
 ```{r}
 fc = cluster_fast_greedy(G) #; modularity(fc) #0.307968
@@ -207,7 +208,7 @@ From several readily available algorithms, fast greedy algorithm was used, which
 p = purity(faculty$Lab, fc$membership)
 ```
 
-Knowing the actual affiliations of the faculty, the clustering can be checked using several evaluation criteria, one of which is purity [@Manning_etal_2008, Section 16]:
+Knowing the actual affiliations of the faculty, the clustering can be checked using several evaluation criteria, one of which is purity [Section 16 in @Manning_etal_2008]:
 
 $$Purity(\Omega,C) = \frac{1}{N}\sum_{k}\max_{j}|\omega_k\cap c_j|,$$
 
@@ -225,11 +226,12 @@ It's been fun.
 * Changed name matching from family name to family name + initial matching for higher accuracy
 * Fixed a typo in one of the family names
 * Added Google Scholar data for one more person
-* Added number of publications plot
+* Added number of publications plot and clustering
 
 
 ### Next steps
 * Retrieve full lists of authors per paper (not truncated)
+* Count number of joint publications to get a weighted network
 * Update text matching
 * Text analytics on paper titles, journal titles
 * Update Google IDs if someone opened an account
