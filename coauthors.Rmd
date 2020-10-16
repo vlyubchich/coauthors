@@ -1,7 +1,7 @@
 ---
 title: "UMCES coauthors"
 author: "V. Lyubchich"
-date: "2020-07-16"
+date: "2020-10-16"
 output: 
   html_document:
     toc: true
@@ -40,7 +40,7 @@ library(plotly)
 library(viridis)
 library(hrbrthemes)
 library(funtimes)
-load("./dataderived/image_getcoauthors_2020-07-16.RData")
+load("./dataderived/image_getcoauthors_2020-10-12.RData")
 ```
 
 ```{r, fig.show = "hold"}
@@ -57,7 +57,7 @@ forceNetwork(Links = G_D3$links, Nodes = G_D3$nodes,
 
 The UMCES faculty list is taken as of 2020-02-26. If you are one of the faculty and wish your name to be removed from analysis just let me know.
 
-The coauthorship network is based on data extracted from Google Scholar on 2020-07-16. Nodes of the network are UMCES faculty members; 
+The coauthorship network is based on data extracted from Google Scholar on 2020-10-12. Nodes of the network are UMCES faculty members; 
 an edge between faculty members A and B exists if A is listed (at least once) among authors of publications in B's profile or vice versa.
 
 Why Google Scholar (advantages):
@@ -216,9 +216,53 @@ where $\Omega=\{\omega_1,\ldots,\omega_K \}$ is the set of identified clusters a
 
 When classes represent the laboratory affiliation (that was not used in clustering) and clusters are the communities obtained by tracking coauthorship links, $Purity =$ `r round(p$pur, 2)`.
 
+
+Below is a matrix showing percentage distribution of within-UMCES collaborations and answers the question: considering collaborators from UMCES, what is the proportion of collaborators from the home lab and other labs?
+```{r}
+#Weighted matrix of collaborations Aw
+# 1) symmetrize with max
+M = Aw
+tmp = cbind(M[lower.tri(M, diag = FALSE)],
+            t(M)[lower.tri(M, diag = FALSE)])
+tmp = apply(tmp, 1, max, na.rm = TRUE)
+tmp[is.infinite(tmp)] = 0
+M[lower.tri(M, diag = FALSE)] = tmp
+M[upper.tri(M, diag = FALSE)] = t(M)[upper.tri(M, diag = FALSE)]
+diag(M) = 0
+# isSymmetric(M)
+
+# 2) summarize by lab
+a = aggregate(M, list(faculty$Lab), FUN = sum)
+rownames(a) = a[,1]
+a = aggregate(t(a[,-1]), list(faculty$Lab), FUN = sum)
+rownames(a) = a[,1]
+a = a[,-1]
+aperc = sweep(a, 1, apply(a, 1, sum), "/") * 100
+aperc$Total = apply(aperc, 1, sum)
+# apply(a, 1, sum) == apply(a, 2, sum) #FALSE
+knitr::kable(aperc, digits = 1,
+             caption = "Percentage distribution of within-UMCES collaborators")
+```
+
+
+```{r}
+#number of publications collected from each lab
+np = tapply(faculty$npubs, faculty$Lab, sum, na.rm = TRUE)
+afrac = sweep(a, 1, np, "/") * 100
+# round(afrac, 1)
+```
+
+
+Please, remember about the data limitations, such as using only about 6 first authors in multi-author publications and absence of Google Scholar accounts for some faculty members.
+
 ## Conclusion
 
 It's been fun.
+
+### Updates (since 2020-07-16)
+
+* Updated publication data by redownloading it from Google
+* Added a table with percentage distribution of within-UMCES collaborators
 
 ### Updates (since 2020-05-16)
 
